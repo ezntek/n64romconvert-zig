@@ -33,35 +33,58 @@ pub fn determineFormatFromReader(reader: *const std.io.AnyReader) Error!RomType 
     }
 }
 
+/// perform an endianness-swap (z64-v64 and vice-versa)
 pub fn endianSwap(in: *const std.io.AnyReader, out: *const std.io.AnyWriter) void {
+    @setEvalBranchQuota(2048);
     const CHUNKSIZE = 256; // each chunk is 4 bytes
-    while (true) {
-        const old_chunk = in.readBytesNoEof(CHUNKSIZE * 4) catch break;
-        var new_chunk: [4 * CHUNKSIZE]u8 = undefined;
+    var new_chunk: [4 * CHUNKSIZE]u8 = undefined;
 
-        @setEvalBranchQuota(2048);
+    loop: {
+        const old_chunk = in.readBytesNoEof(CHUNKSIZE * 4) catch break :loop;
+
         inline for (0..CHUNKSIZE) |chunk| {
             inline for (0..4) |i| {
                 new_chunk[4 * chunk + i] = old_chunk[4 * chunk + (3 - i)];
             }
         }
 
-        out.writeAll(&new_chunk) catch @panic("arstarst");
+        out.writeAll(&new_chunk) catch panic("failed to write to writer during format conversion", .{});
     }
 }
 
+/// perform an byteswap (z64-v64 and vice-versa)
 pub fn byteSwap(in: *const std.io.AnyReader, out: *const std.io.AnyWriter) void {
     const CHUNKSIZE = 256; // each chunk is 2 bytes
-    while (true) {
-        const old_chunk = in.readBytesNoEof(CHUNKSIZE * 2) catch break;
-        var new_chunk: [2 * CHUNKSIZE]u8 = undefined;
+    var new_chunk: [2 * CHUNKSIZE]u8 = undefined;
+
+    loop: {
+        const old_chunk = in.readBytesNoEof(CHUNKSIZE * 2) catch break :loop;
 
         inline for (0..CHUNKSIZE) |chunk| {
             new_chunk[2 * chunk] = old_chunk[2 * chunk + 1];
             new_chunk[2 * chunk + 1] = old_chunk[2 * chunk];
         }
 
-        out.writeAll(&new_chunk) catch @panic("arstarst");
+        out.writeAll(&new_chunk) catch panic("failed to write to writer during format conversion", .{});
+    }
+}
+
+/// perform both a byteswap and endianswap (n64-z64 and vice-versa)
+pub fn byteEndianSwap(in: *const std.io.AnyReader, out: *const std.io.AnyWriter) void {
+    const CHUNKSIZE = 256; // each chunk is 4 bytes
+    var new_chunk: [4 * CHUNKSIZE]u8 = undefined;
+
+    loop: {
+        const old_chunk = in.readBytesNoEof(CHUNKSIZE * 4) catch break :loop;
+
+        inline for (0..CHUNKSIZE) |chunk| {
+            new_chunk[4 * chunk] = old_chunk[4 * chunk + 2];
+            new_chunk[4 * chunk + 1] = old_chunk[4 * chunk + 3];
+            new_chunk[4 * chunk + 2] = old_chunk[4 * chunk + 0];
+            new_chunk[4 * chunk + 3] = old_chunk[4 * chunk + 1];
+        }
+
+        out.writeAll(&new_chunk) catch panic("failed to write to writer during format conversion", .{});
     }
 }
 
@@ -73,10 +96,6 @@ test "swap big endian to little endian" {
     const out = try std.fs.cwd().createFile("baserom.us.n64", .{});
     const writer = out.writer().any();
 
-    std.debug.print("format of {s}: {any}\n", .{ origpath, try determineFormatFromReader(&reader) });
-
-    fp.seekTo(0) catch @panic("arst");
-
     endianSwap(&reader, &writer);
 }
 
@@ -85,14 +104,21 @@ test "swap big endian to byteswapped" {
     const fp = try std.fs.cwd().openFile(origpath, .{ .mode = .read_only });
     defer fp.close();
     const reader = fp.reader().any();
-    const out = try std.fs.cwd().createFile("baserom.us.n64", .{});
+    const out = try std.fs.cwd().createFile("baserom.us.v64", .{});
     const writer = out.writer().any();
 
-    std.debug.print("format of {s}: {any}\n", .{ origpath, try determineFormatFromReader(&reader) });
-
-    fp.seekTo(0) catch @panic("arst");
-
     byteSwap(&reader, &writer);
+}
+
+test "swap little endian to byteswapped" {
+    const origpath = "baserom.us.n64";
+    const fp = try std.fs.cwd().openFile(origpath, .{ .mode = .read_only });
+    defer fp.close();
+    const reader = fp.reader().any();
+    const out = try std.fs.cwd().createFile("baserom.us.v64", .{});
+    const writer = out.writer().any();
+
+    byteEndianSwap(&reader, &writer);
 }
 
 test "format of z64 rom" {
