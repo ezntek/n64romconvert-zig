@@ -59,6 +59,10 @@ pub fn build(b: *std.Build) void {
         .root_module = n64romconvert_lib_mod,
     });
 
+    const clap = b.dependency("clap", .{});
+    n64romtype_mod.addImport("clap", clap.module("clap"));
+    n64romconvert_mod.addImport("clap", clap.module("clap"));
+
     // This declares intent for the library to be installed into the standard
     // location when the user invokes the "install" step (the default step when
     // running `zig build`).
