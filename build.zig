@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
     // This creates a "module", which represents a collection of source files alongside
     // some compilation options, such as optimization mode and linked system libraries.
     // Every executable or library we compile will be based on one or more modules.
-    const n64romconvert_lib_mod = b.createModule(.{
+    const n64romconvert_lib_mod = b.addModule("n64romconvert_lib", .{
         // `root_source_file` is the Zig "entry point" of the module. If a module
         // only contains e.g. external object files, you can make this `null`.
         // In this case the main source file is merely a path, however, in more
