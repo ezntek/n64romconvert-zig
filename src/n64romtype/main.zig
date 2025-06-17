@@ -46,11 +46,9 @@ pub fn main() !void {
     }
 
     if (res.positionals[0]) |arg| {
-        const typ = rc.determineFormatFromFile(arg) catch |err| switch (err) {
+        const typ = rc.determineFormatFromPath(arg) catch |err| switch (err) {
             rc.Error.InvalidRomError => std.debug.panic("ROM is invalid", .{}),
         };
-        //var buf: [12]u8 = undefined;
-        //const typ_s = typ.getString(&buf);
 
         const stdout = std.io.getStdOut().writer();
         try stdout.print("\u{001b}[36;1mtype:\u{001b}[0m {s} (\u{001b}[1m{c}64\u{001b}[0m)\n", .{ @tagName(typ), typ.getChar() });
