@@ -1,6 +1,8 @@
 const std = @import("std");
 const panic = std.debug.panic;
 
+pub const VERSION = "0.1.0";
+
 pub const Error = error{
     InvalidRomError,
 };

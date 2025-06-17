@@ -3,21 +3,35 @@ const std = @import("std");
 const clap = @import("clap");
 const rc = @import("n64romconvert_lib");
 
+const VERSION = "0.1.0";
+
 const PARAMS = clap.parseParamsComptime(
     \\-h, --help          Display this message and exit.
-    \\-f, --format <fmt>  Target ROM format
+    \\-V, --version       Print the version
+    \\-q, --quiet         Suppress output messages
+    \\-f, --format <fmt>  Specify explicit target ROM format
+    \\-t, --type   <fmt>  Specify explicit target ROM format (duplicate of --format)
     \\<src>               Path to source ROM
     \\<dest>              Destination ROM (file type can be automatically detected)
 );
 
-pub fn help() !noreturn {
-    const stderr = std.io.getStdErr().writer();
+fn printVersion(writer: *const std.io.AnyWriter) void {
+    writer.print("version {s} (library version {s})\n", .{ VERSION, rc.VERSION }) catch {};
+}
 
-    try stderr.writeAll("\u{001b}[1mn64convert:\u{001b}[0m convert between N64 ROM formats\n");
-    try stderr.writeAll("usage: ");
-    try clap.usage(stderr, clap.Help, &PARAMS);
-    try stderr.writeAll("\n");
-    try clap.help(stderr, clap.Help, &PARAMS, .{});
+fn help() !noreturn {
+    const stderr = std.io.getStdErr().writer();
+    var bw = std.io.bufferedWriter(stderr);
+    const writer = bw.writer();
+
+    try writer.writeAll("\u{001b}[1mn64romconvert:\u{001b}[0m convert between N64 ROM formats\n");
+    try writer.writeAll(" " ** ("n64romconvert: ").len);
+    printVersion(&writer.any());
+    try writer.writeAll("usage: ");
+    try clap.usage(writer, clap.Help, &PARAMS);
+    try writer.writeAll("\n");
+    try clap.help(writer, clap.Help, &PARAMS, .{});
+    try bw.flush();
 
     std.process.exit(0);
 }
@@ -96,6 +110,11 @@ pub fn main() !void {
         try help();
     }
 
+    if (res.args.version != 0) {
+        printVersion(&std.io.getStdOut().writer().any());
+        std.process.exit(0);
+    }
+
     // process args
     const in_path: []const u8 = if (res.positionals[0]) |arg|
         arg
@@ -107,13 +126,6 @@ pub fn main() !void {
     else
         try help();
 
-    // open files
-    //const in_path = std.fs.realpathAlloc(alloc, in_path_raw) catch |err| panic("could not resolve absolute path `{s}`: {any}", .{ in_path_raw, err });
-    //const out_path = std.fs.realpathAlloc(alloc, out_path_raw) catch |err| panic("could not resolve absolute path `{s}`: {any}", .{ out_path_raw, err });
-
-    //defer alloc.free(in_path);
-    //defer alloc.free(out_path);
-
     const in_file = rc.openRom(in_path) catch fatal("could not open ROM at `{s}`!", .{in_path});
     const out_file = rc.createRom(out_path) catch fatal("could not create new ROM at `{s}`!", .{out_path});
 
@@ -123,6 +135,8 @@ pub fn main() !void {
     // conversion logic
     const target_format_s = if (res.args.format) |fmt|
         fmt
+    else if (res.args.type) |typ|
+        typ
     else
         getPathExtension(out_path);
 
@@ -144,8 +158,10 @@ pub fn main() !void {
         fatal("will not convert between the same formats!", .{});
     }
 
-    const out_name = std.fs.path.basename(out_path);
-    printConvertInfo(src_format, target_format, out_name);
+    if (res.args.quiet == 0) {
+        const out_name = std.fs.path.basename(out_path);
+        printConvertInfo(src_format, target_format, out_name);
+    }
 
     convert(src_format, target_format, &in_file, &out_file);
 }
