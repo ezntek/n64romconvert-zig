@@ -51,6 +51,13 @@ inline fn formatsEqualUnordered(x: rc.RomType, y: rc.RomType, a: rc.RomType, b: 
     return (x == a and y == b) or (x == b and y == a);
 }
 
+fn printConvertInfo(in: rc.RomType, out: rc.RomType, out_name: []const u8) void {
+    const stdout = std.io.getStdOut().writer();
+    stdout.print("\u{001b}[36;1mrom type:\u{001b}[0m\t{s} (\u{001b}[1m{c}64\u{001b}[0m)\n", .{ @tagName(in), in.getChar() }) catch {};
+    stdout.print("\u{001b}[36;1mout type:\u{001b}[0m\t{s} (\u{001b}[1m{c}64\u{001b}[0m)\n", .{ @tagName(out), out.getChar() }) catch {};
+    stdout.print("\u{001b}[32;1mnew file name:\u{001b}[0m\t{s}\n", .{out_name}) catch {};
+}
+
 fn convert(in_fmt: rc.RomType, out_fmt: rc.RomType, in: *const std.fs.File, out: *const std.fs.File) void {
     if (formatsEqualUnordered(in_fmt, out_fmt, .big_endian, .byte_swapped)) {
         rc.byteSwap(in, out);
@@ -136,6 +143,9 @@ pub fn main() !void {
     if (src_format == target_format) {
         fatal("will not convert between the same formats!", .{});
     }
+
+    const out_name = std.fs.path.basename(out_path);
+    printConvertInfo(src_format, target_format, out_name);
 
     convert(src_format, target_format, &in_file, &out_file);
 }
