@@ -1,7 +1,7 @@
 const std = @import("std");
 const panic = std.debug.panic;
 
-pub const VERSION = "0.1.0";
+pub const VERSION = "0.2.0";
 
 pub const Error = error{
     InvalidRomError,
@@ -168,6 +168,32 @@ pub fn byteEndianSwapPath(in: []const u8, out: []const u8) void {
     defer out_file.close();
 
     return byteEndianSwap(&in_file, &out_file);
+}
+
+inline fn formatsEqualUnordered(x: RomType, y: RomType, a: RomType, b: RomType) bool {
+    return (x == a and y == b) or (x == b and y == a);
+}
+
+/// wrapper function to convert a ROM to a target format, from two open files.
+/// Asserts that in_fmt != out_fmt
+pub fn convert(in_fmt: RomType, out_fmt: RomType, in: *const std.fs.File, out: *const std.fs.File) void {
+    std.debug.assert(in_fmt != out_fmt);
+    if (formatsEqualUnordered(in_fmt, out_fmt, .big_endian, .byte_swapped)) {
+        byteSwap(in, out);
+    } else if (formatsEqualUnordered(in_fmt, out_fmt, .big_endian, .little_endian)) {
+        endianSwap(in, out);
+    } else if (formatsEqualUnordered(in_fmt, out_fmt, .little_endian, .byte_swapped)) {
+        byteEndianSwap(in, out);
+    }
+}
+
+/// wrapper function to convert a ROM to a target format, from two file paths.
+/// Asserts that in_fmt != out_fmt
+pub fn convertPaths(in_fmt: RomType, out_fmt: RomType, in: []const u8, out: []const u8) !void {
+    std.debug.assert(in_fmt != out_fmt);
+    const in_file = try openRom(in);
+    const out_file = try createRom(out);
+    return convert(in_fmt, out_fmt, &in_file, &out_file);
 }
 
 test "swap big endian to little endian" {

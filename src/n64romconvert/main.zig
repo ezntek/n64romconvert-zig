@@ -3,7 +3,7 @@ const std = @import("std");
 const clap = @import("clap");
 const rc = @import("n64romconvert_lib");
 
-const VERSION = "0.1.0";
+const VERSION = "0.2.0";
 
 const PARAMS = clap.parseParamsComptime(
     \\-h, --help          Display this message and exit.
@@ -61,25 +61,11 @@ fn getPathExtension(path: []const u8) []const u8 {
     return path[dot_pos + 1 ..];
 }
 
-inline fn formatsEqualUnordered(x: rc.RomType, y: rc.RomType, a: rc.RomType, b: rc.RomType) bool {
-    return (x == a and y == b) or (x == b and y == a);
-}
-
 fn printConvertInfo(in: rc.RomType, out: rc.RomType, out_name: []const u8) void {
     const stdout = std.io.getStdOut().writer();
     stdout.print("\u{001b}[36;1mrom type:\u{001b}[0m\t{s} (\u{001b}[1m{c}64\u{001b}[0m)\n", .{ @tagName(in), in.getChar() }) catch {};
     stdout.print("\u{001b}[36;1mout type:\u{001b}[0m\t{s} (\u{001b}[1m{c}64\u{001b}[0m)\n", .{ @tagName(out), out.getChar() }) catch {};
     stdout.print("\u{001b}[32;1mnew file name:\u{001b}[0m\t{s}\n", .{out_name}) catch {};
-}
-
-fn convert(in_fmt: rc.RomType, out_fmt: rc.RomType, in: *const std.fs.File, out: *const std.fs.File) void {
-    if (formatsEqualUnordered(in_fmt, out_fmt, .big_endian, .byte_swapped)) {
-        rc.byteSwap(in, out);
-    } else if (formatsEqualUnordered(in_fmt, out_fmt, .big_endian, .little_endian)) {
-        rc.endianSwap(in, out);
-    } else if (formatsEqualUnordered(in_fmt, out_fmt, .little_endian, .byte_swapped)) {
-        rc.byteEndianSwap(in, out);
-    }
 }
 
 pub fn main() !void {
@@ -163,5 +149,5 @@ pub fn main() !void {
         printConvertInfo(src_format, target_format, out_name);
     }
 
-    convert(src_format, target_format, &in_file, &out_file);
+    rc.convert(src_format, target_format, &in_file, &out_file);
 }
