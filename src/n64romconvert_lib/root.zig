@@ -36,19 +36,13 @@ pub const RomType = enum {
 
 /// helper function to open an existing ROM file. The caller is expected to close this file when done.
 pub fn openRom(path: []const u8) !std.fs.File {
-    var buf: [std.fs.max_path_bytes]u8 = undefined;
-    const resolved_path = try std.fs.realpath(path, &buf);
-    const fp = try std.fs.openFileAbsolute(resolved_path, .{ .mode = .read_only });
-    return fp;
+    return try std.fs.cwd().openFile(path, .{ .mode = .read_only });
 }
 
 /// helper function to either create a ROM file for writing, or overwrite and open it if it still exists.
 /// The caller is expected to close this file when done.
 pub fn createRom(path: []const u8) !std.fs.File {
-    return if (!std.fs.path.isAbsolute(path))
-        try std.fs.cwd().createFile(path, .{})
-    else
-        try std.fs.createFileAbsolute(path, .{});
+    return try std.fs.cwd().createFile(path, .{});
 }
 
 /// determine the actual ROM format from a file path.
